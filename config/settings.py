@@ -3,7 +3,22 @@ from datetime import timedelta
 from pathlib import Path
 
 
+def load_local_env(path):
+    """Load simple KEY=value entries without overriding real environment variables."""
+    if not path.exists():
+        return
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        if key:
+            os.environ.setdefault(key, value.strip().strip('"').strip("'"))
+
+
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_local_env(BASE_DIR / ".env")
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-only-change-this-secret-before-deploying")
 DEBUG = os.environ.get("DJANGO_DEBUG", "true").lower() == "true"
 if not DEBUG and SECRET_KEY == "dev-only-change-this-secret-before-deploying":
