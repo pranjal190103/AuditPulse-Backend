@@ -23,7 +23,14 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-only-change-this-secret-be
 DEBUG = os.environ.get("DJANGO_DEBUG", "true").lower() == "true"
 if not DEBUG and SECRET_KEY == "dev-only-change-this-secret-before-deploying":
     raise ValueError("Set DJANGO_SECRET_KEY to a unique secret when DEBUG is disabled.")
-ALLOWED_HOSTS = [host for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if host]
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get(
+        "DJANGO_ALLOWED_HOSTS",
+        "localhost,127.0.0.1,auditpulseapi.vestaging.in",
+    ).split(",")
+    if host.strip()
+]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -103,10 +110,11 @@ MEDIA_ROOT = Path(os.environ.get("DJANGO_MEDIA_ROOT", BASE_DIR / "media"))
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 CORS_ALLOWED_ORIGINS = [
-    origin for origin in os.environ.get(
+    origin.strip() for origin in os.environ.get(
         "CORS_ALLOWED_ORIGINS",
-        "http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173",
-    ).split(",") if origin
+        "http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,"
+        "http://127.0.0.1:4173,https://auditpulse.vestaging.in",
+    ).split(",") if origin.strip()
 ]
 CORS_ALLOW_CREDENTIALS = True
 # Vite picks another port when its default is already occupied.  Keep local
