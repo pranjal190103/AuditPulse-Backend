@@ -24,6 +24,18 @@ DEBUG = os.environ.get("DJANGO_DEBUG", "true").lower() == "true"
 if not DEBUG and SECRET_KEY == "dev-only-change-this-secret-before-deploying":
     raise ValueError("Set DJANGO_SECRET_KEY to a unique secret when DEBUG is disabled.")
 ALLOWED_HOSTS = [host for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if host]
+# CSRF trusted origins
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get(
+        "DJANGO_CSRF_TRUSTED_ORIGINS",
+        "https://auditpulseapi.vestaging.in"
+    ).split(",")
+    if origin.strip()
+]
+
+# Trust HTTPS information forwarded by the reverse proxy
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
