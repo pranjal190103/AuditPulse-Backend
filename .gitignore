@@ -1,7 +1,25 @@
+
+# Environment files
 .env
+.env.*
+!.env.example
+
+# Python virtual environments
 .venv/
+venv/
+
+# Python cache
 __pycache__/
 *.py[cod]
-db.sqlite3
+
+# Database files
+*.sqlite3
+*.db
+
+# Django generated files
 media/
 staticfiles/
+
+# IDE files
+.vscode/
+.idea/
