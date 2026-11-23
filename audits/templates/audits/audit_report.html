@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ audit.client }} | AuditPulse report</title>
+  <style>
+    :root { font-family: Arial, Helvetica, sans-serif; color: #172b47; background: #f6f8fb; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body { background: #f6f8fb; color: #172b47; font-size: 14px; line-height: 1.52; }
+    .wrap { max-width: 920px; margin: auto; padding: 46px 22px 75px; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { font-family: Georgia, 'Times New Roman', serif; font-size: 44px; font-weight: 700; letter-spacing: -1.9px; line-height: 1.04; }
+    h2 { font-size: 24px; letter-spacing: -.5px; line-height: 1.2; margin: 44px 0 17px; }
+    h3 { font-size: 20px; letter-spacing: -.35px; line-height: 1.25; margin: 0 0 8px; }
+    .cover { position: relative; min-height: 586px; margin: -46px -22px 0; padding: 48px 68px; overflow: hidden; background: linear-gradient(125deg, #fffdfb 0%, #fbf4f0 54%, #f1e4de 100%); }
+    .cover:before { content: ''; position: absolute; width: 570px; height: 570px; right: -106px; top: -115px; border-radius: 50%; background: rgba(255,255,255,.58); }
+    .cover:after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 16px; background: #e00016; }
+    .cover-brand { position: relative; z-index: 2; display: flex; align-items: center; justify-content: flex-end; gap: 9px; color: #182434; font-size: 17px; font-weight: 800; letter-spacing: .1px; }
+    .cover-mark { display: inline-grid; grid-template-columns: 12px 12px; gap: 3px; transform: rotate(-8deg); }
+    .cover-mark i { display: block; height: 12px; background: #27c5bd; } .cover-mark i:nth-child(2), .cover-mark i:nth-child(3) { background: #66d9d1; }
+    .cover-copy { position: relative; z-index: 2; width: 48%; padding-top: 71px; }
+    .cover-type { color: #596478; font-size: 15px; font-weight: 700; letter-spacing: .1px; margin: 16px 0 42px; }
+    .cover-prepared { color: #596478; font-size: 16px; margin: -30px 0 44px; }
+    .cover-risk { color: #dc0016; font-size: 33px; font-weight: 700; letter-spacing: -1.1px; line-height: 1.12; margin: 0 0 17px; }
+    .cover-risk strong { font-size: 53px; }
+    .cover-message { color: #121923; font-size: 30px; line-height: 1.15; margin: 0; }
+    .cover-chip { display: inline-block; margin-top: 47px; padding: 12px 20px; border-radius: 10px; background: #df0017; color: #fff; font-size: 20px; font-weight: 700; }
+    .browser-card { position: absolute; z-index: 2; top: 221px; right: 52px; width: 330px; border-radius: 13px; overflow: hidden; background: #faf7f4; box-shadow: 0 13px 22px rgba(23,30,43,.24); }
+    .browser-bar { display: flex; align-items: center; gap: 5px; height: 30px; padding: 0 11px; background: #ecebea; } .dot { width: 10px; height: 10px; border-radius: 50%; background: #ff5e54; } .dot:nth-child(2) { background: #ffbd2e; } .dot:nth-child(3) { background: #28c840; }
+    .browser-site { height: 193px; padding: 18px 22px; background: linear-gradient(112deg, rgba(255,255,255,.72), rgba(225,215,206,.38)), linear-gradient(135deg, #e7e0d7, #c6beb4); }
+    .site-name { font-family: Georgia, serif; font-size: 16px; font-weight: 700; }.site-nav { float: right; color: #2c3035; font-size: 8px; font-weight: 700; word-spacing: 7px; }.site-hero { clear: both; padding-top: 46px; font-family: Georgia, serif; font-size: 25px; line-height: .94; color: #5c5c5b; }.site-sub { margin-top: 14px; color: #747473; font-size: 8px; }.site-button { display: inline-block; margin-top: 19px; padding: 8px 12px; border-radius: 4px; color: white; background: #777; font-size: 8px; }
+    .intro { max-width: 785px; margin: 38px auto 0; color: #50647e; font-size: 15px; }
+    .finding { position: relative; background: white; border: 1px solid #e0e5ec; border-radius: 15px; padding: 26px 28px; margin: 15px 0; box-shadow: 0 3px 14px rgba(20,30,50,.035); break-inside: avoid; }
+    .finding p { margin: 0; color: #4d627d; }.red { color: #e3263e; }.finding-details { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 24px; margin-top: 19px; padding-top: 16px; border-top: 1px solid #edf0f4; }.detail-title { display: block; color: #172b47; font-size: 12px; font-weight: 800; margin-bottom: 3px; }.detail-value { color: #4d627d; font-size: 12px; line-height: 1.43; white-space: pre-line; }
+    .finding-label { position: absolute; right: 27px; bottom: 19px; color: #172b47; font-size: 12px; font-weight: 700; }.priority { color: #e3263e; font-size: 11px; font-weight: 800; letter-spacing: .75px; text-transform: uppercase; }
+    .metric-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }.metric-card { position: relative; min-height: 151px; padding: 20px; border: 1px solid #e2e7ed; border-radius: 12px; background: #fff; break-inside: avoid; }.metric-title { margin: 0 0 8px; color: #5a6e89; font-size: 12px; }.metric-value { color: #142a47; font-size: 27px; font-weight: 800; letter-spacing: -.8px; line-height: 1.05; }.metric-target { margin: 7px 0 0; color: #5a6e89; font-size: 11px; }.metric-detail { position: absolute; right: 19px; bottom: 16px; color: #172b47; font-size: 11px; font-weight: 700; }
+    .roadmap { padding: 23px 30px 19px; border: 1px solid #e0e5ec; border-radius: 15px; background: #fff; break-inside: avoid; }.roadmap ol { margin: 0; padding-left: 20px; }.roadmap li { margin: 0 0 16px; padding-left: 4px; color: #172b47; }.roadmap li:last-child { margin-bottom: 0; }.roadmap strong { font-weight: 800; }.roadmap span { color: #394e6a; }.cta { margin-top: 27px; padding: 24px 22px; border: 1px solid #e0e5ec; border-radius: 15px; background: #fff; break-inside: avoid; }.cta h2 { margin: 0 0 12px; font-size: 21px; }.cta p { margin: 0 0 13px; color: #3d5170; }.cta-action { color: #172b47; font-weight: 800; }.foot { max-width: 700px; margin: 24px 0 0; color: #64758a; font-size: 10px; line-height: 1.5; }.empty { color: #64758a; font-style: italic; }
+    @page { size: A4; margin: 0; }
+    @media print { html, body { width: 210mm; background: #f6f8fb; -webkit-print-color-adjust: exact; print-color-adjust: exact; } .wrap { max-width: none; padding: 13mm 17mm 17mm; } .cover { width: 210mm; height: 297mm; min-height: 297mm; margin: -13mm -17mm 0; padding: 21mm 21mm; page-break-after: always; break-after: page; } .cover-copy { padding-top: 46mm; } .cover-brand { font-size: 16px; } .browser-card { top: 93mm; right: 16mm; width: 93mm; } .intro { margin-top: 0; } h2 { break-after: avoid; } .finding { box-shadow: none; } .finding-details { display: block; } .finding-details > div { margin-bottom: 10px; } .finding-details > div:last-child { margin-bottom: 0; } }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header class="cover">
+      <div class="cover-brand"><span class="cover-mark"><i></i><i></i><i></i><i></i></span> AuditPulse <span style="font-weight:500">| Digital growth studio</span></div>
+      <div class="cover-copy">
+        <h1>{{ audit.client }}</h1>
+        <div class="cover-type">Your Website &amp; Digital Marketing Audit</div>
+        <p class="cover-prepared">Prepared exclusively by AuditPulse</p>
+        <p class="cover-risk"><strong>{{ findings|length }}</strong> priority<br>actions to address.</p>
+        <p class="cover-message">A clear plan for confident digital growth.</p>
+        <div class="cover-chip">Explore the improvement plan &rarr;</div>
+      </div>
+      <aside class="browser-card" aria-label="Client website preview"><div class="browser-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div><div class="browser-site"><span class="site-name">{{ audit.client }}</span><span class="site-nav">AuditPulse Review</span><div class="site-hero">Built for<br>better growth</div><div class="site-sub">Client digital experience review</div><span class="site-button">Explore opportunities</span></div></aside>
+    </header>
+
+    <p class="intro">This approved report brings together the evidence, assessments and recommendations captured for {{ audit.client }}. It is designed to help the team prioritise the actions with the clearest potential impact.</p>
+
+    <h2>Critical Issues Affecting Your Business Growth</h2>
+    {% for finding in headline_findings %}
+      <section class="finding"><h3><span class="red">{{ finding.get_priority_display }}</span> {{ finding.title }}</h3><p>{{ finding.why_it_matters|default:finding.problem|default:"Evidence and recommendations are available for this finding."|truncatechars:260 }}</p><span class="finding-label">View finding &dtrif;</span></section>
+    {% empty %}<section class="finding"><h3>No critical findings recorded</h3><p class="empty">This approved audit has no findings yet.</p></section>{% endfor %}
+
+    <h2>Current Performance vs. 90-Day Targets</h2>
+    <div class="metric-grid">{% for metric in metric_cards %}<section class="metric-card"><p class="metric-title">{{ metric.name }}</p><div class="metric-value">{{ metric.value }}</div><p class="metric-target">{{ metric.target }}</p><span class="metric-detail">View details &dtrif;</span></section>{% endfor %}</div>
+
+    {% for finding in additional_findings %}
+      {% if forloop.first %}<h2>Additional Findings Requiring Review</h2>{% endif %}
+      <section class="finding"><h3><span class="red">{{ finding.get_priority_display }}</span> {{ finding.title }}</h3><p>{{ finding.why_it_matters|default:finding.problem|default:"Evidence and recommendations are available for this finding."|truncatechars:260 }}</p><span class="finding-label">View finding &dtrif;</span></section>
+    {% endfor %}
+
+    <h2>Your 90-Day Improvement Roadmap</h2>
+    <section class="roadmap"><ol>{% for item in roadmap_items %}<li><strong>{% if item.phase %}{{ item.phase }}: {% endif %}{{ item.title|default:"Roadmap action" }}.</strong>{% if item.description %} <span>{{ item.description }}</span>{% endif %}{% if item.owner %}<span> Owner: {{ item.owner }}.</span>{% endif %}</li>{% empty %}<li class="empty">No roadmap actions have been defined for this audit.</li>{% endfor %}</ol></section>
+
+    <section class="cta"><h2>Find Out Which Issue Deserves Your Attention First</h2><p>Review these findings with your audit team, validate their business impact and prioritise the actions that best support {{ audit.client }}'s next growth milestone.</p><div class="cta-action">{{ audit.goal|default:"Discuss the audit findings and agree the next action plan." }}</div></section>
+    <p class="foot">Approved {{ approved_at|date:"d M Y" }} &middot; Prepared by {{ owner_name }} &middot; Reviewed by {{ reviewer_name }}. This report reflects the approved AuditPulse record for {{ audit.client }}.</p>
+  </main>
+</body>
+</html>

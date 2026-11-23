@@ -1,11 +1,19 @@
 from io import BytesIO
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import tempfile
 from xml.sax.saxutils import escape
 from uuid import uuid4
+
+import fitz
 
 from django.conf import settings
 from django.contrib.auth.models import update_last_login
 from django.db import IntegrityError, transaction
 from django.http import FileResponse
+from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.text import slugify
 from rest_framework import filters, permissions, status, viewsets
@@ -435,7 +443,181 @@ def shared_audit(request, token):
     return Response(SharedAuditSerializer(audit).data)
 
 
+def build_html_audit_report(audit):
+    """Render the approved audit as a print-first HTML document.
+
+    The template follows the client report reference design while keeping every
+    value scoped to the audit passed by the approved-report endpoint.
+    """
+    modules = list(audit.modules.all())
+    scored_modules = [module for module in modules if module.assessment_score is not None]
+    evidence_items = [item for module in modules for item in module.evidence.all()]
+    priority_order = {
+        Finding.Priority.CRITICAL: 0,
+        Finding.Priority.HIGH: 1,
+        Finding.Priority.MEDIUM: 2,
+        Finding.Priority.LOW: 3,
+    }
+    findings = sorted(
+        audit.findings.select_related("module").all(),
+        key=lambda finding: (priority_order[finding.priority], finding.created_at),
+    )
+    average_score = (
+        round(sum(module.assessment_score for module in scored_modules) / len(scored_modules))
+        if scored_modules else None
+    )
+    roadmap = audit.roadmap_data or {}
+    raw_kpis = roadmap.get("kpis", [])
+    metric_cards = []
+    for kpi in raw_kpis[:4]:
+        baseline = kpi.get("baseline") or "Not set"
+        target = kpi.get("target") or "Not set"
+        unit = kpi.get("unit") or ""
+        metric_cards.append({
+            "name": kpi.get("name") or "Performance KPI",
+            "value": f"{baseline}{unit}",
+            "target": f"Target: {target}{unit}",
+        })
+    fallback_metrics = [
+        {
+            "name": "Overall audit health",
+            "value": f"{average_score}/100" if average_score is not None else "Not scored",
+            "target": "Target: improvement plan approved",
+        },
+        {
+            "name": "Priority findings",
+            "value": str(len(findings)),
+            "target": "Target: highest-priority actions resolved",
+        },
+        {
+            "name": "Evidence captured",
+            "value": str(len(evidence_items)),
+            "target": "Target: decisions supported by evidence",
+        },
+        {
+            "name": "Assessment coverage",
+            "value": f"{len(scored_modules)}/{len(modules)}",
+            "target": "Target: all required modules reviewed",
+        },
+    ]
+    metric_cards.extend(fallback_metrics[:max(0, 4 - len(metric_cards))])
+    approved_at = timezone.localtime(audit.approved_at or audit.updated_at)
+    context = {
+        "audit": audit,
+        "modules": modules,
+        "scored_modules": scored_modules,
+        "findings": findings,
+        "evidence_items": evidence_items,
+        "average_score": average_score,
+        "roadmap_items": roadmap.get("items", []),
+        "kpis": raw_kpis,
+        "metric_cards": metric_cards,
+        "headline_findings": findings[:3],
+        "additional_findings": findings[3:],
+        "approved_at": approved_at,
+        "owner_name": audit.owner.get_full_name() or audit.owner.email or audit.owner.get_username(),
+        "reviewer_name": (
+            audit.approved_by.get_full_name() or audit.approved_by.email or audit.approved_by.get_username()
+            if audit.approved_by else "Quality reviewer"
+        ),
+    }
+    html = render_to_string("audits/audit_report.html", context)
+
+    # The browser print engine supports the modern CSS used by the supplied
+    # reference (grid, gradients, print colours and page-break rules).
+    browser_candidates = [
+        os.environ.get("AUDIT_REPORT_CHROMIUM_PATH", ""),
+        r"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+        r"C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+        r"C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
+        r"C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+        shutil.which("google-chrome") or "",
+        shutil.which("chromium") or "",
+        shutil.which("chromium-browser") or "",
+    ]
+    browser = next((candidate for candidate in browser_candidates if candidate and Path(candidate).is_file()), None)
+    if browser:
+        with tempfile.TemporaryDirectory(prefix="auditpulse-report-") as temp_dir:
+            html_path = Path(temp_dir) / "report.html"
+            pdf_path = Path(temp_dir) / "report.pdf"
+            html_path.write_text(html, encoding="utf-8")
+            result = subprocess.run(
+                [
+                    browser,
+                    "--headless=new",
+                    "--disable-gpu",
+                    "--no-sandbox",
+                    "--print-to-pdf-no-header",
+                    f"--print-to-pdf={pdf_path}",
+                    html_path.as_uri(),
+                ],
+                capture_output=True,
+                text=True,
+                timeout=90,
+                check=False,
+            )
+            if result.returncode == 0 and pdf_path.exists() and pdf_path.stat().st_size > 1024:
+                pdf = pdf_path.read_bytes()
+                filename = f"{slugify(audit.client) or 'client'}-audit-report.pdf"
+                return FileResponse(
+                    BytesIO(pdf),
+                    as_attachment=True,
+                    filename=filename,
+                    content_type="application/pdf",
+                )
+
+    # Compatibility fallback for environments without Chromium. Production
+    # should install Chromium and configure AUDIT_REPORT_CHROMIUM_PATH.
+    page_rect = fitz.paper_rect("a4")
+    content_rect = fitz.Rect(40, 42, page_rect.width - 40, page_rect.height - 58)
+    story = fitz.Story(html=html)
+    pdf_buffer = BytesIO()
+    writer = fitz.DocumentWriter(pdf_buffer)
+    more = 1
+    while more:
+        device = writer.begin_page(page_rect)
+        more, _ = story.place(content_rect)
+        story.draw(device)
+        writer.end_page()
+    writer.close()
+    pdf = pdf_buffer.getvalue()
+    document = fitz.open(stream=pdf, filetype="pdf")
+    page_total = len(document)
+    for page_number, page in enumerate(document, start=1):
+        page.draw_line(
+            fitz.Point(40, page_rect.height - 34),
+            fitz.Point(page_rect.width - 40, page_rect.height - 34),
+            color=(0.87, 0.89, 0.92),
+            width=0.5,
+        )
+        page.insert_text(
+            fitz.Point(40, page_rect.height - 20),
+            f"AuditPulse - {audit.client}",
+            fontsize=7,
+            color=(0.41, 0.46, 0.54),
+        )
+        page.insert_text(
+            fitz.Point(page_rect.width - 92, page_rect.height - 20),
+            f"Page {page_number} of {page_total}",
+            fontsize=7,
+            color=(0.41, 0.46, 0.54),
+        )
+    pdf = document.tobytes(garbage=4, deflate=True)
+    document.close()
+    filename = f"{slugify(audit.client) or 'client'}-audit-report.pdf"
+    return FileResponse(
+        BytesIO(pdf),
+        as_attachment=True,
+        filename=filename,
+        content_type="application/pdf",
+    )
+
+
 def build_audit_report(audit):
+    return build_html_audit_report(audit)
+
+
+def build_legacy_audit_report(audit):
     buffer = BytesIO()
     styles = getSampleStyleSheet()
     styles.add(ParagraphStyle(
